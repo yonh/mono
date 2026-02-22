@@ -1,0 +1,95 @@
+# Grap Page - 网页原义提取器
+
+基于 WXT 的浏览器插件与本地后端服务 MVP，实现网页原义数据的无损提取、传输与存储。
+
+## 项目结构
+
+```
+grap_page/
+├── src/
+│   └── entrypoints/
+│       ├── background.ts    # 后台脚本 - 右键菜单和网络请求
+│       ├── content.ts       # 内容脚本
+│       └── popup/
+│           ├── index.html   # Popup 界面
+│           └── main.ts      # Popup 逻辑
+├── server/
+│   └── index.ts             # 本地后端服务
+├── data/
+│   └── pages.log            # 数据存储文件
+├── package.json
+├── wxt.config.ts
+└── tsconfig.json
+```
+
+## 功能特性
+
+- **右键菜单提取**: 右键点击页面选择"提取页面原义"
+- **Popup 界面**: 点击插件图标提取当前页面
+- **选区支持**: 如果有选中文本则提取选区，否则提取整个页面
+- **无损提取**: 使用 `innerText` 保留原始文本格式
+- **本地存储**: 数据保存到 `data/pages.log`
+
+## 使用方法
+
+### 1. 启动后端服务
+
+```bash
+npm run server
+# 或
+npx tsx server/index.ts
+```
+
+服务启动在 `http://localhost:3000`
+
+### 2. 安装插件
+
+```bash
+npm run build
+```
+
+在 Chrome 中：
+1. 访问 `chrome://extensions/`
+2. 启用"开发者模式"
+3. 点击"加载已解压的扩展程序"
+4. 选择 `.output/chrome-mv3` 目录
+
+### 3. 使用插件
+
+- **右键菜单**: 在任意页面右键，选择"提取页面原义"
+- **Popup**: 点击插件图标，点击"提取当前页面"按钮
+
+## API 端点
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/health` | GET | 健康检查 |
+| `/api/save` | POST | 保存页面数据 |
+| `/api/pages` | GET | 获取已保存的数据 |
+
+### POST /api/save
+
+请求体：
+```json
+{
+  "url": "https://example.com",
+  "title": "Example Page",
+  "content": "Page content...",
+  "timestamp": "2026-02-22T18:00:00.000Z"
+}
+```
+
+响应：
+```json
+{
+  "success": true,
+  "id": 1234567890,
+  "message": "数据已保存"
+}
+```
+
+## 技术栈
+
+- **插件**: WXT (Manifest V3)
+- **后端**: Hono (轻量级 HTTP 框架)
+- **运行时**: Node.js
