@@ -1,0 +1,36 @@
+## [2024-2025] - Grap Page 项目进度归档
+
+### 项目概述
+基于 WXT 的浏览器插件 MVP，实现网页内容无损传递并对接本地大模型。
+
+### 变更文件列表
+- src/entrypoints/content.ts - 内容脚本，注入悬浮组件
+- src/entrypoints/background.ts - 背景脚本，右键菜单支持
+- server/index.ts - 后端服务，LLM 对接
+- e2e/floating-component.spec.ts - UI 组件 E2E 测试
+- e2e/data-capture.spec.ts - 数据采集 E2E 测试
+
+### Patterns (模式发现)
+
+#### 1. WXT 框架模式
+- Content Script 注入模式: defineContentScript 配合 matches: ['<all_urls>']
+- 类型声明扩展: .wxt/types/ 自动生成类型定义
+- tsconfig.json extends: "./.wxt/tsconfig.json"
+
+#### 2. Playwright 持久化环境配置
+- 路径: $HOME/.auto/test
+- 方法: chromium.launchPersistentContext(PERSISTENT_PROFILE, {...})
+- 关键: 不能使用空字符串作为 profile 路径
+
+#### 3. TypeScript 类型处理
+- Server 目录需要独立 tsconfig.json (Node.js 运行时)
+- 根目录 tsconfig.json 排除 server 目录
+
+#### 4. 数据采集模式
+- 优先级: 用户选区 > 页面全文
+- 实现: window.getSelection()?.toString() || document.body.innerText
+
+#### 5. 后端 LLM 对接
+- 配置: given_llm_api.yaml
+- 库: js-yaml 读取配置
+- 持久化: 追加写入 data/pages.log
