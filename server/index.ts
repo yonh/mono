@@ -97,7 +97,7 @@ async function callLLMApi(prompt: string, context?: string) {
       throw new Error(`LLM API 返回错误：${response.status} - ${errorText}`);
     }
 
-    const result = await response.json();
+    const result: any = await response.json();
     console.log("LLM 原始响应:", JSON.stringify(result).slice(0, 200));
     return {
       success: true,
@@ -223,8 +223,8 @@ console.log(`🤖 LLM API: ${llmConfig.apikey ? "已配置" : "未配置"}`);
 
 // 使用异步方式启动服务器
 (async () => {
-  if (typeof Bun !== "undefined") {
-    Bun.serve({ port, fetch: app.fetch });
+  if (typeof (globalThis as any).Bun !== "undefined") {
+    (globalThis as any).Bun.serve({ port, fetch: app.fetch });
   } else {
     // Node.js - 使用 Hono 的 serve 方法
     const { serve } = await import("@hono/node-server");

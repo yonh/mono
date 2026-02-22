@@ -1,8 +1,11 @@
 import { test, expect, chromium } from "@playwright/test";
 import path from "path";
+import os from "os";
 
 // 获取扩展程序路径
 const EXTENSION_PATH = path.join(__dirname, "..", ".output", "chrome-mv3");
+// 使用持久化配置目录（符合 Target.md 要求）
+const PERSISTENT_PROFILE = path.join(os.homedir(), ".auto", "test");
 const BACKEND_URL = "http://127.0.0.1:3000";
 
 test.describe("Grap Page Extension - 阶段 3: 数据捕获与发送", () => {
@@ -11,7 +14,8 @@ test.describe("Grap Page Extension - 阶段 3: 数据捕获与发送", () => {
 
   test.beforeAll(async () => {
     // 启动 Chromium 并加载扩展程序
-    const browser = await chromium.launchPersistentContext("", {
+    // 使用持久化 Profile 确保上下文连续性
+    const browser = await chromium.launchPersistentContext(PERSISTENT_PROFILE, {
       headless: false,
       args: [
         `--disable-extensions-except=${EXTENSION_PATH}`,

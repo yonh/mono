@@ -1,5 +1,4 @@
 {
-  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
@@ -9,10 +8,8 @@
     "esModuleInterop": true,
     "lib": ["ESNext"],
     "types": ["node"],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "resolveJsonModule": true
   },
-  "exclude": ["node_modules", ".output", "e2e", "test", "server"]
+  "include": ["*.ts"],
+  "exclude": ["node_modules"]
 }
