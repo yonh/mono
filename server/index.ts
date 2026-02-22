@@ -25,9 +25,12 @@ let llmConfig: any = {};
 try {
   const yamlContent = fs.readFileSync(CONFIG_PATH, "utf-8");
   llmConfig = yaml.load(yamlContent) || {};
-  console.log("📋 LLM 配置已加载:", llmConfig);
+  console.log("📋 LLM 配置已加载:");
+  console.log("  apikey:", llmConfig.apikey ? "已配置" : "未配置");
+  console.log("  doc_url:", llmConfig.doc_url || "未配置");
 } catch (error) {
   console.warn("⚠️ 无法读取 LLM 配置文件，使用默认配置");
+  console.warn("  错误:", error instanceof Error ? error.message : error);
   llmConfig = {
     apikey: "",
     doc_url: "https://help.aliyun.com/zh/model-studio/coding-plan",
@@ -52,37 +55,31 @@ app.get("/health", (c) => {
   });
 });
 
-// 调用 LLM API
+// 调用 LLM API (阿里云 Coding Plan - OpenAI 兼容协议)
 async function callLLMApi(prompt: string, context?: string) {
   const apiKey = llmConfig.apikey;
 
-  if (!apiKey || !apiKey.startsWith("sk-")) {
-    throw new Error("无效 API key");
+  if (!apiKey) {
+    throw new Error("未配置 API key");
   }
 
-  // 阿里云百炼标准 API 端点
-  const apiUrl =
-    "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation";
+  // 使用 OpenAI 兼容协议端点
+  const apiUrl = "https://coding.dashscope.aliyuncs.com/v1/chat/completions";
 
-  // 阿里云百炼标准请求格式
   const requestBody = {
-    model: "qwen-plus",
-    input: {
-      messages: [
-        {
-          role: "system",
-          content:
-            "你是一个网页内容分析助手。用户会提供网页的标题、URL 和内容，请简要总结内容要点。",
-        },
-        {
-          role: "user",
-          content: `请分析以下网页内容:\n\n标题：${context?.split("\n")[0] || "未知"}\nURL: ${context?.split("\n")[1] || "未知"}\n\n内容摘要：${prompt}`,
-        },
-      ],
-    },
-    parameters: {
-      result_format: "message",
-    },
+    model: "qwen-coder-plus", // Coding Plan 支持的模型
+    messages: [
+      {
+        role: "system",
+        content:
+          "你是一个网页内容分析助手。用户会提供网页的标题、URL 和内容，请简要总结内容要点。",
+      },
+      {
+        role: "user",
+        content: `请分析以下网页内容:\n\n标题：${context?.split("\n")[0] || "未知"}\nURL: ${context?.split("\n")[1] || "未知"}\n\n内容摘要：${prompt}`,
+      },
+    ],
+    stream: false,
   };
 
   try {
@@ -91,7 +88,6 @@ async function callLLMApi(prompt: string, context?: string) {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
-        "X-DashScope-SSE": "disable",
       },
       body: JSON.stringify(requestBody),
     });
@@ -105,8 +101,8 @@ async function callLLMApi(prompt: string, context?: string) {
     console.log("LLM 原始响应:", JSON.stringify(result).slice(0, 200));
     return {
       success: true,
-      content: result.output?.choices?.[0]?.message?.content || "无响应内容",
-      usage: result.output?.usage,
+      content: result.choices?.[0]?.message?.content || "无响应内容",
+      usage: result.usage,
     };
   } catch (error) {
     console.error("调用 LLM API 失败:", error);

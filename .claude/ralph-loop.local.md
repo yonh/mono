@@ -3,52 +3,63 @@ active: true
 iteration: 1
 max_iterations: 50
 completion_promise: "COMPLETE"
-started_at: "2026-02-22T18:53:01Z"
+started_at: "2026-02-22T19:05:55Z"
 ---
 
 
-请基于 TDD (测试驱动开发) 模式开发一个 WXT 浏览器插件与本地后端，严格遵循以下规范：
-1. **自动化测试**: 必须使用 Playwright 进行真实环境 E2E 测试。
-2. **UI 交互**: 禁止使用 Popup，必须在页面右下角注入固定悬浮组件（Button/Panel），供自动化脚本定位点击。
-3. **Git 提交**: 每完成一个功能模块且测试通过后，必须执行 git add 和 git commit，记录当前进度。
+### 任务目标
+开发基于 WXT 的浏览器插件 MVP 与本地后端，采用 TDD (测试驱动开发) 模式，实现网页内容无损传递并对接本地大模型。
+
+### 核心原则
+1. **架构约束**: 必须通过 Content Script 在页面右下角渲染悬浮组件（严禁 Popup），必须使用 Playwright 进行真实环境 E2E 测试。
+2. **数据约束**: 严禁修改 DOM，仅读取页面内容保持原义。
+3. **流程约束**: 严格遵循 TDD（先写测试-再写实现），每个功能阶段测试通过后必须提交 Git 代码。
+4. **环境持久化 (关键)**: 为解决数据丢失和插件状态问题，**必须**使用用户指定的持久化环境命令进行开发和测试。严禁每次生成临时浏览器实例，必须确保上下文连续。
+5. **Prompt 文件安全**: 允许对代码实现细节进行自由优化和重构。但如果涉及到对  文件的修改，**绝对禁止**删除、覆盖或大幅修改上述核心原则与任务规划。每次修改  前需重点审核是否偏离核心需求。
+
+### 环境与执行控制
+在所有需要浏览器交互或测试的场景中，必须使用以下命令启动或连接环境，以确保插件加载状态和数据上下文不丢失：
+```bash
+playwright-cli open --headed --persistent --profile=/Users/yonh/.auto/test
+```
+*注：所有测试执行和插件验证都应在此环境或指向此 Profile 的上下文中进行。*
 
 ### 任务迭代计划
-请按顺序执行以下阶段，每个阶段结束后必须 **提交 Git 代码**：
+请按顺序执行以下阶段：
 
-**阶段 1: 基础架构与测试环境**
-- 初始化 WXT 项目与后端项目结构。
-- 配置 Playwright 测试环境（支持加载插件）。
-- 创建占位测试文件，确保测试框架能运行。
-- **提交代码**: chore: init project structure and test env
+**阶段 1: 环境与项目搭建**
+- 初始化 WXT (TypeScript) 与后端项目结构。
+- 配置 Playwright，并确保其能连接到  持久化 Profile。
+- **测试**: 验证测试框架能否控制该持久化浏览器。
+- **Git Commit**: chore: init project and persistent profile env
 
-**阶段 2: 前端组件注入 (TDD)**
-- **测试**: 编写用例验证页面右下角是否存在指定 ID 的悬浮组件。
-- **实现**: 编写 Content Script 逻辑，注入组件。
-- **验证**: 运行测试直至通过。
-- **提交代码**: feat: inject floating component via content script
+**阶段 2: UI 组件注入**
+- **测试**: 编写 E2E 用例，在持久化浏览器中验证页面右下角存在指定 ID 的悬浮组件。
+- **实现**: Content Script 逻辑，注入组件。
+- **验证**: 在持久化环境中重新加载插件或页面，确认组件显示。
+- **Git Commit**: feat: inject floating component
 
-**阶段 3: 数据捕获与发送 (TDD)**
-- **测试**: 编写用例模拟点击组件，验证是否向后端发送了包含 url, title, content (原义) 的正确请求。
-- **实现**: 实现点击事件监听与数据抓取逻辑，对接后端接口。
-- **验证**: 运行测试直至通过。
-- **提交代码**: feat: implement data capture and transmission
+**阶段 3: 数据采集与传输**
+- **测试**: 在持久化环境中编写 E2E 用例，模拟点击组件，验证是否向后端发送包含 url, title, content 的正确 JSON 请求。
+- **实现**: 点击事件监听、数据抓取、网络请求逻辑。
+- **验证**: 观察持久化环境中的网络请求和控制台日志。
+- **Git Commit**: feat: capture and transmit data
 
-**阶段 4: 后端服务与 LLM 对接 (TDD)**
-- **测试**: 编写用例启动后端，模拟请求，验证是否读取  并成功调用 LLM API。
-- **实现**: 实现后端服务，处理 CORS，转发数据。
-- **验证**: 运行测试直至通过。
-- **提交代码**: feat: implement backend service and llm integration
+**阶段 4: 后端服务与 LLM 对接**
+- **测试**: 编写测试验证后端接收请求，读取 ，成功调用本地 LLM API 并返回。
+- **实现**: 后端服务、跨域处理、LLM 对接逻辑。
+- **Git Commit**: feat: backend service and llm integration
 
-**阶段 5: 端到端联调**
-- 运行完整 Playwright 测试套件，确保全链路打通。
-- 修复任何遗留 Bug。
-- **提交代码**: test: e2e test passing and code cleanup
+**阶段 5: 全链路联调**
+- 在持久化环境中运行完整交互流程。
+- 确保无报错，数据无损传输。
+- **Git Commit**: test: e2e pass and cleanup
 
-### 核心约束
-- **数据原则**: 严禁修改页面 DOM，仅读取。
-- **真实测试**: 必须真实运行浏览器与网络请求，不得仅使用 Mock。
-- **提交规范**: 每个阶段成功后必须提交，不得跳过。
+### 执行要求
+- 保持代码简洁，MVP 优先。
+- 严格遵守环境命令，避免上下文丢失导致测试失败。
+- 每次迭代必须先运行测试，根据结果修改代码。
 
-当所有阶段完成且 E2E 测试全绿，输出：
+当所有阶段完成且持久化环境测试通过，输出：
 <COMPLETE>
 

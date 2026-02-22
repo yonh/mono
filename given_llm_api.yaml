@@ -1,4 +1,4 @@
 apikey: sk-sp-c3c3273aac4348338203194792610e2f
 doc_url: https://help.aliyun.com/zh/model-studio/coding-plan
-OpenAI 兼容协议：https://coding.dashscope.aliyuncs.com/v1
-Anthropic 兼容协议：https://coding.dashscope.aliyuncs.com/apps/anthropic
+openai_endpoint: https://coding.dashscope.aliyuncs.com/v1
+anthropic_endpoint: https://coding.dashscope.aliyuncs.com/apps/anthropic
