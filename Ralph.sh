@@ -9,6 +9,7 @@ export CLAUDE_CODE_MAX_OUTPUT_TOKENS=65536
 while [ $count -lt 100 ]; do
     #echo "Loop iteration $count"
     count=$((count + 1))
-    cat PROMPT.md | claude --dangerously-skip-permissions --model qwen3.5-plus --continue
-    sleep 600
+    timeout 1200 cat PROMPT.md | claude --dangerously-skip-permissions --model qwen3.5-plus --continue
+    delay=$(( 300 + RANDOM % 301 ))
+    sleep $delay
 done

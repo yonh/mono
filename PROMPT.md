@@ -1,59 +1,56 @@
 /ralph-loop:ralph-loop "
-### 任务目标
-开发基于 WXT 的浏览器插件 MVP 与本地后端，采用 TDD (测试驱动开发) 模式，实现网页内容无损传递并对接本地大模型。
+### 核心任务
+开发基于 WXT 的浏览器插件 MVP 与本地后端，采用 TDD 模式，实现网页内容无损传递并对接本地大模型。请严格按照以下 Agent 指令执行。
 
-### 核心原则
-1. **架构约束**: 必须通过 Content Script 在页面右下角渲染悬浮组件（严禁 Popup），必须使用 Playwright 进行真实环境 E2E 测试。
-2. **数据约束**: 严禁修改 DOM，仅读取页面内容保持原义。
-3. **流程约束**: 严格遵循 TDD（先写测试-再写实现），每个功能阶段测试通过后必须提交 Git 代码。
-4. **环境持久化 (关键)**: 为解决数据丢失和插件状态问题，**必须**使用用户指定的持久化环境命令进行开发和测试。严禁每次生成临时浏览器实例，必须确保上下文连续。
-5. **Prompt 文件安全**: 允许对代码实现细节进行自由优化和重构。但如果涉及到对 `PROMPT.md` 文件的修改，**绝对禁止**删除、覆盖或大幅修改上述核心原则与任务规划。每次修改 `PROMPT.md` 前需重点审核是否偏离核心需求。
+---
 
-### 环境与执行控制
-在所有需要浏览器交互或测试的场景中，必须使用以下命令启动或连接环境，以确保插件加载状态和数据上下文不丢失：
-\`\`\`bash
-playwright-cli open --headed --persistent --profile="$HOME/.auto/test"
-\`\`\`
-*注：所有测试执行和插件验证都应在此环境或指向此 Profile 的上下文中进行。*
+### Agent 指令
 
-### 任务迭代计划
-请按顺序执行以下阶段：
+#### 1. 状态读取
+- 读取 `prd.json` (项目需求定义)。
+- 读取 `progress.txt` (进度记录与代码模式库)。
+- **初始化逻辑**: 如果当前目录不存在 `prd.json`，请立即创建一个包含以下内容的文件：
+  \`\`\`json
+  [
+    { \"id\": \"1\", \"title\": \"环境搭建与持久化配置\", \"passes\": false, \"priority\": 1 },
+    { \"id\": \"2\", \"title\": \"UI 组件注入 (TDD)\", \"passes\": false, \"priority\": 2 },
+    { \"id\": \"3\", \"title\": \"数据采集与传输 (TDD)\", \"passes\": false, \"priority\": 3 },
+    { \"id\": \"4\", \"title\": \"后端服务与 LLM 对接 (TDD)\", \"passes\": false, \"priority\": 4 },
+    { \"id\": \"5\", \"title\": \"全链路联调\", \"passes\": false, \"priority\": 5 }
+  ]
+  \`\`\`
 
-**阶段 1: 环境与项目搭建**
-- 初始化 WXT (TypeScript) 与后端项目结构。
-- 配置 Playwright，并确保其能连接到 `$HOME/.auto/test` 持久化 Profile。
-- **测试**: 验证测试框架能否控制该持久化浏览器。
-- **Git Commit**: "chore: init project and persistent profile env"
+#### 2. 任务选择
+- 检查当前 Git 分支是否正确。
+- 从 `prd.json` 中挑选优先级最高且 `passes: false` 的 **一个** 任务进行实施。
 
-**阶段 2: UI 组件注入**
-- **测试**: 编写 E2E 用例，在持久化浏览器中验证页面右下角存在指定 ID 的悬浮组件。
-- **实现**: Content Script 逻辑，注入组件。
-- **验证**: 在持久化环境中重新加载插件或页面，确认组件显示。
-- **Git Commit**: "feat: inject floating component"
+#### 3. 实施规范 (TDD & 环境约束)
+- **必须遵循 TDD**: 先写测试，再写实现。
+- **必须使用持久化环境**: 所有涉及 Playwright 的测试和调试，**必须**使用以下命令确保环境上下文连续：
+  \`playwright-cli open --headed --persistent --profile=\"$HOME/.auto/test\"\`
+- **架构要求**: Content Script 注入右下角悬浮组件，严禁 Popup，严禁修改 DOM。
+- **Prompt 安全**: 禁止修改或删除 `PROMPT.md` 的核心原则。
 
-**阶段 3: 数据采集与传输**
-- **测试**: 在持久化环境中编写 E2E 用例，模拟点击组件，验证是否向后端发送包含 url, title, content 的正确 JSON 请求。
-- **实现**: 点击事件监听、数据抓取、网络请求逻辑。
-- **验证**: 观察持久化环境中的网络请求和控制台日志。
-- **Git Commit**: "feat: capture and transmit data"
+#### 4. 验证与提交
+- 运行类型检查和测试。
+- Git 提交，格式: \`feat: [ID] - [Title]\`。
+- 更新 `prd.json`，将当前任务的 `passes` 改为 `true`。
 
-**阶段 4: 后端服务与 LLM 对接**
-- **测试**: 编写测试验证后端接收请求，读取 `given_llm_api.yaml`，成功调用本地 LLM API 并返回。
-- **实现**: 后端服务、跨域处理、LLM 对接逻辑。
-- **Git Commit**: "feat: backend service and llm integration"
+#### 5. 进度归档
+将本次迭代的经验追加到 `progress.txt` 中：
 
-**阶段 5: 全链路联调**
-- 在持久化环境中运行完整交互流程。
-- 确保无报错，数据无损传输。
-- **Git Commit**: "test: e2e pass and cleanup"
-- 测试能否爬取：https://help.aliyun.com/zh/model-studio/coding-plan
+## [日期] - [Story ID]
+- 实现内容概要
+- 变更文件列表
+- **Patterns (模式发现):**
+  - 发现的可复用代码模式
+  - Playwright 持久化环境的配置技巧
+  - WXT 特定的坑或解决方案
+---
 
-### 执行要求
-- 保持代码简洁，MVP 优先。
-- 严格遵守环境命令，避免上下文丢失导致测试失败。
-- 每次迭代必须先运行测试，根据结果修改代码。
-
-当所有阶段完成且持久化环境测试通过，输出：
+#### 6. 停止条件
+检查 `prd.json`，如果**所有**任务的 `passes` 均为 `true`，请回复：
 <COMPLETE>
-" --completion-promise "COMPLETE" --max-iterations 50
-```
+否则，继续循环处理下一个任务。
+
+" --completion-promise "COMPLETE" --max-iterations 25
