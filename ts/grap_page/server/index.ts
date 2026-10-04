@@ -13,8 +13,9 @@ app.use(
   "*",
   cors({
     origin: "*",
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type"],
+    allowMethods: ["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   }),
 );
 
@@ -64,10 +65,11 @@ async function callLLMApi(prompt: string, context?: string) {
   }
 
   // 使用 OpenAI 兼容协议端点
-  const apiUrl = "https://coding.dashscope.aliyuncs.com/v1/chat/completions";
+  const apiUrl =
+    "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
 
   const requestBody = {
-    model: "qwen-coder-plus", // Coding Plan 支持的模型
+    model: "qwen-coder-plus", // 通义千问代码模型
     messages: [
       {
         role: "system",
@@ -221,16 +223,10 @@ console.log(`🚀 服务器启动在 http://localhost:${port}`);
 console.log(`📁 数据保存到：${LOG_FILE}`);
 console.log(`🤖 LLM API: ${llmConfig.apikey ? "已配置" : "未配置"}`);
 
-// 使用异步方式启动服务器
-(async () => {
-  if (typeof (globalThis as any).Bun !== "undefined") {
-    (globalThis as any).Bun.serve({ port, fetch: app.fetch });
-  } else {
-    // Node.js - 使用 Hono 的 serve 方法
-    const { serve } = await import("@hono/node-server");
-    serve({
-      fetch: app.fetch,
-      port,
-    });
-  }
-})();
+// 使用 Hono 的 serve 方法启动服务器
+import { serve } from "@hono/node-server";
+
+serve({
+  fetch: app.fetch,
+  port,
+});
