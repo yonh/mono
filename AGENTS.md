@@ -6,11 +6,11 @@ mono 是多语言个人项目仓库：一个仓库装所有语言的项目。
 
 - 项目一律放在 `<lang>/<project>/` 两级目录，`lang` 为小写语言名
   （`dart`、`python`、`go`、`rust`、`ts`、`shell` …）。
-- 每个项目目录必须含 `mono.json`（`name`/`lang`/`description`/`created`）
-  和自己的 `README.md`；`mono.json` 是"该目录是项目"的唯一标记。
+- `db.json` 是唯一的项目注册表（数据库式单一数据源）："该目录是项目"
+  的唯一标记就是 `db.json` 里有它的条目。不要手改 db.json，走命令。
 - `tools/`、`docs/`、`scripts/`、隐藏目录不进索引，不是语言命名空间。
 - 项目可以带着自己的历史纳入：先用 `git merge --allow-unrelated-histories`
-  并入，再用 `register` 登记索引（见 `ts/grap_page` 先例）。
+  并入，再用 `register` 登记（见 `ts/grap_page` 先例）。
 
 ## 项目创建与索引：只用脚本，不手改
 
@@ -23,12 +23,16 @@ python3 tools/mono.py list                                   # 查看现有项�
 python3 tools/mono.py index                                  # 仅重建索引
 ```
 
-`new` 会生成 `<lang>/<name>/mono.json` 和项目 README，并把项目写进首页索引；
-之后在该项目内正常开发即可。删除项目：删目录后跑一次 `index`。
+`new` 会生成 `<lang>/<name>/` 和项目 README，并把项目写进 `db.json` 与首页索引；
+之后在该项目内正常开发即可。
 
 ```bash
 python3 tools/mono.py register <lang> <dir> --desc "说明"   # 登记已存在的目录
+python3 tools/mono.py remove <lang> <dir> [--rmdir]         # 移除条目（可选连目录一起删）
 ```
+
+`index` / `list` 会顺带报告"未登记目录"：手动建的二级目录不在 db.json 里时
+会被程序发现并提示登记，而不是静默进索引 —— 这正是程序维护的意义。
 
 ## 提交
 

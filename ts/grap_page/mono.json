@@ -1,6 +1,0 @@
-{
-  "name": "grap_page",
-  "lang": "ts",
-  "description": "网页原义提取器：WXT 浏览器插件 + 本地后端，网页数据无损提取/传输/存储",
-  "created": "2026-10-05"
-}
