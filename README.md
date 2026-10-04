@@ -29,6 +29,11 @@ python3 tools/mono.py index                                 # 仅重建索引
 <!-- MONO:INDEX:BEGIN -->
 *本节由 `python3 tools/mono.py index` 生成，请勿手改。*
 
+### dart
+| 项目 | 说明 | 创建 |
+|---|---|---|
+| [pdf_study](dart/pdf_study/) | AI PDF 学习阅读器：批注/笔记 + DeepSeek/Claude/Codex/Devin 问答、讲解与课后复习 | 2026-10-04 |
+
 ### ts
 | 项目 | 说明 | 创建 |
 |---|---|---|
