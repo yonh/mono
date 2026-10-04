@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -6,6 +7,7 @@ import 'package:pdf_study/src/ai/ai.dart';
 import 'package:pdf_study/src/ai/context.dart';
 import 'package:pdf_study/src/models.dart';
 import 'package:pdf_study/src/srs.dart';
+import 'package:pdf_study/src/store.dart';
 import 'package:pdf_study/src/ui/flashcard_panel.dart';
 
 void main() {
@@ -217,6 +219,22 @@ void main() {
       final d = AiProviderConfig.fromJson(c.toJson());
       expect(d.kind, AiProviderKind.devinApi);
       expect(d.apiKey, 'k1');
+    });
+  });
+
+  group('JsonFile', () {
+    test('并发写入串行化，最终保留最后一次内容', () async {
+      final dir = await Directory.systemTemp.createTemp('pdfstudy');
+      addTearDown(() => dir.delete(recursive: true));
+      final f = JsonFile(File('${dir.path}/a.json'));
+      // 连续并发写：后一次必须完整覆盖前一次
+      await Future.wait([
+        f.write({'v': 1}),
+        f.write({'v': 2}),
+        f.write({'v': 3}),
+      ]);
+      expect(await f.read(), {'v': 3});
+      expect(File('${dir.path}/a.json.tmp').existsSync(), isFalse);
     });
   });
 }

@@ -152,11 +152,17 @@ class CliAgentProvider extends AiProvider {
   String unavailableReason() =>
       '未找到 CLI `${config.cliPath}`（确认已安装并在 PATH 中，或在设置里填绝对路径）';
 
+  static final _cliNamePattern = RegExp(r'^[A-Za-z0-9._-]+$');
+
   Future<String?> _resolveCli() async {
     final p = config.cliPath.trim();
     if (p.isEmpty) return null;
-    if (p.contains('/') && await File(p).exists()) return p;
-    // GUI 应用 PATH 受限，走登录 shell 查 which
+    if (p.contains('/')) {
+      // 显式路径：文件检查即可，不经过 shell
+      return await File(p).exists() ? p : null;
+    }
+    // 裸命令名才走 shell 查找；白名单字符防止命令名注入 bash -lc
+    if (!_cliNamePattern.hasMatch(p)) return null;
     try {
       final r = await Process.run('/bin/bash', [
         '-lc',
@@ -216,30 +222,36 @@ class CliAgentProvider extends AiProvider {
         final r = await Process.run('/bin/bash', ['-lc', 'echo \$PATH']);
         if (r.exitCode == 0) env['PATH'] = (r.stdout as String).trim();
       } catch (_) {}
-      final proc = await Process.start(
-        exe,
-        args,
-        environment: env,
-        mode: ProcessStartMode.normal,
-      );
-      var gotOutput = false;
-      proc.stderr.transform(utf8.decoder).drain<void>(); // 静默 stderr
-      await for (final chunk in proc.stdout.transform(utf8.decoder)) {
-        if (chunk.isNotEmpty) {
-          gotOutput = true;
-          yield AiChunk(chunk);
-        }
-      }
-      final code = await proc.exitCode;
-      if (code != 0 && !gotOutput) {
-        yield AiChunk(
-          '',
-          done: true,
-          error: '${config.name} 退出码 $code（可能未登录或参数不兼容）',
+      Process? proc;
+      try {
+        proc = await Process.start(
+          exe,
+          args,
+          environment: env,
+          mode: ProcessStartMode.normal,
         );
-        return;
+        var gotOutput = false;
+        proc.stderr.transform(utf8.decoder).drain<void>(); // 静默 stderr
+        await for (final chunk in proc.stdout.transform(utf8.decoder)) {
+          if (chunk.isNotEmpty) {
+            gotOutput = true;
+            yield AiChunk(chunk);
+          }
+        }
+        final code = await proc.exitCode;
+        if (code != 0 && !gotOutput) {
+          yield AiChunk(
+            '',
+            done: true,
+            error: '${config.name} 退出码 $code（可能未登录或参数不兼容）',
+          );
+          return;
+        }
+        yield AiChunk('', done: true);
+      } finally {
+        // 流被取消（用户点停止）时终止子进程，避免 CLI 残留跑资源
+        proc?.kill();
       }
-      yield AiChunk('', done: true);
     } catch (e) {
       yield AiChunk('', done: true, error: '启动 ${config.name} 失败：$e');
     }

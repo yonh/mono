@@ -207,7 +207,8 @@ class Prompts {
         content:
             '当前文档上下文（$scopeDesc）：\n"""\n${ctx.text}\n"""\n基于上下文优先回答，必要时结合常识。',
       ),
-      ...history.take(20),
+      // 保留最近 20 条历史，追问不丢上下文
+      ...history.sublist(history.length > 20 ? history.length - 20 : 0),
       ChatMessage(role: 'user', content: question),
     ];
   }

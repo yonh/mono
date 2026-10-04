@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -102,6 +103,7 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
   }
 
   void _saveProgress() {
+    if (docRef == null) return; // 条目已被删，不回写进度
     final lib = ref.read(libraryProvider);
     unawaited(
       lib.touch(
@@ -113,6 +115,15 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
         zoom: controller.isReady ? controller.currentZoom : null,
       ),
     );
+  }
+
+  /// 批注/书签变更后强制页面层重绘（pdfrx 的自定义绘制只在视图变换时重跑）。
+  void _repaintPages() {
+    if (controller.isReady) {
+      unawaited(
+        controller.goTo(controller.value.clone(), duration: Duration.zero),
+      );
+    }
   }
 
   void _onPageChanged(int? page) {
@@ -211,6 +222,7 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
       }
     }
     await controller.textSelectionDelegate.clearTextSelection();
+    _repaintPages();
   }
 
   Future<void> editAnnotation(Annotation a) async {
@@ -298,7 +310,10 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
     } else if (result != null) {
       a.note = result;
       await docData.updateAnnotation(a);
+    } else {
+      return;
     }
+    _repaintPages();
   }
 
   // ---------- 绘制 ----------
@@ -630,130 +645,180 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
             ),
           ],
         ),
-        body: Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: settings.sidebarOpen ? 290 : 0,
-              child: settings.sidebarOpen ? _buildSidebar() : null,
-            ),
-            Expanded(
-              child: docRef == null
-                  ? const Center(child: Text('没有打开的文档'))
-                  : PdfViewer(
-                      docRef!,
-                      controller: controller,
-                      params: PdfViewerParams(
-                        pageAnchor: PdfPageAnchor.top,
-                        backgroundColor:
-                            Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFF20242B)
-                            : const Color(0xFFE8EAEE),
-                        keyHandlerParams: const PdfViewerKeyHandlerParams(
-                          autofocus: true,
-                        ),
-                        sizeDelegateProvider:
-                            const PdfViewerSizeDelegateProviderLegacy(
-                              maxScale: 8,
-                            ),
-                        textSelectionParams: PdfTextSelectionParams(
-                          onTextSelectionChange: (sel) async {
-                            selectionRanges = await sel.getSelectedTextRanges();
-                          },
-                        ),
-                        pagePaintCallbacks: [
-                          if (searcher != null)
-                            searcher!.pageTextMatchPaintCallback,
-                          _paintAnnotations,
-                        ],
-                        buildContextMenu: _buildContextMenu,
-                        onViewerReady: (doc, ctrl) async {
-                          document = doc;
-                          pageCount = doc.pages.length;
-                          outline = await doc.loadOutline();
-                          searcher = PdfTextSearcher(ctrl)
-                            ..addListener(() => setState(() {}));
-                          ctrl.requestFocus();
-                          // 恢复进度
-                          if (entry.lastPage > 1) {
-                            await ctrl.goToPage(
-                              pageNumber: entry.lastPage.clamp(1, pageCount),
-                              duration: Duration.zero,
-                            );
-                          }
-                          if (entry.zoom != null && entry.zoom! > 0) {
-                            await ctrl.setZoom(
-                              ctrl.centerPosition,
-                              entry.zoom!,
-                              duration: Duration.zero,
-                            );
-                          }
-                          await ref
-                              .read(libraryProvider)
-                              .touch(
-                                key: entry.key,
-                                path: entry.path,
-                                title: entry.title,
-                                pageCount: pageCount,
-                                lastPage: currentPage,
-                              );
-                          if (mounted) setState(() {});
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            // 窄屏（手机）下双面板改为浮层，不再挤占阅读区
+            final narrow = constraints.maxWidth < 840;
+            final sideW = narrow
+                ? math.min(300.0, constraints.maxWidth * 0.8)
+                : 290.0;
+            final aiW = narrow
+                ? math.min(380.0, constraints.maxWidth * 0.85)
+                : 400.0;
+            final viewer = docRef == null
+                ? const Center(child: Text('没有打开的文档'))
+                : PdfViewer(
+                    docRef!,
+                    controller: controller,
+                    params: PdfViewerParams(
+                      pageAnchor: PdfPageAnchor.top,
+                      backgroundColor:
+                          Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF20242B)
+                          : const Color(0xFFE8EAEE),
+                      keyHandlerParams: const PdfViewerKeyHandlerParams(
+                        autofocus: true,
+                      ),
+                      sizeDelegateProvider:
+                          const PdfViewerSizeDelegateProviderLegacy(
+                            maxScale: 8,
+                          ),
+                      textSelectionParams: PdfTextSelectionParams(
+                        onTextSelectionChange: (sel) async {
+                          selectionRanges = await sel.getSelectedTextRanges();
                         },
-                        onPageChanged: _onPageChanged,
-                        linkHandlerParams: PdfLinkHandlerParams(
-                          onLinkTap: (link) {
-                            if (link.dest != null) {
-                              controller.goToDest(link.dest);
-                            } else if (link.url != null) {
-                              launchUrlExternal(link.url!, context: context);
-                            }
-                          },
-                        ),
-                        loadingBannerBuilder: (context, done, total) =>
-                            const Center(child: CircularProgressIndicator()),
-                        viewerOverlayBuilder: (context, size, handleLinkTap) =>
-                            [
-                              PdfViewerScrollThumb(
-                                controller: controller,
-                                orientation: ScrollbarOrientation.right,
-                                thumbSize: const Size(36, 24),
-                                thumbBuilder:
-                                    (
-                                      context,
-                                      thumbSize,
-                                      pageNumber,
-                                      controller,
-                                    ) => Container(
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .inverseSurface
-                                            .withValues(alpha: 0.7),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          '$pageNumber',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onInverseSurface,
-                                          ),
+                      ),
+                      pagePaintCallbacks: [
+                        if (searcher != null)
+                          searcher!.pageTextMatchPaintCallback,
+                        _paintAnnotations,
+                      ],
+                      buildContextMenu: _buildContextMenu,
+                      onViewerReady: (doc, ctrl) async {
+                        document = doc;
+                        pageCount = doc.pages.length;
+                        outline = await doc.loadOutline();
+                        searcher = PdfTextSearcher(ctrl)
+                          ..addListener(() => setState(() {}));
+                        ctrl.requestFocus();
+                        // 恢复进度
+                        if (entry.lastPage > 1) {
+                          await ctrl.goToPage(
+                            pageNumber: entry.lastPage.clamp(1, pageCount),
+                            duration: Duration.zero,
+                          );
+                        }
+                        if (entry.zoom != null && entry.zoom! > 0) {
+                          await ctrl.setZoom(
+                            ctrl.centerPosition,
+                            entry.zoom!,
+                            duration: Duration.zero,
+                          );
+                        }
+                        await ref
+                            .read(libraryProvider)
+                            .touch(
+                              key: entry.key,
+                              path: entry.path,
+                              title: entry.title,
+                              pageCount: pageCount,
+                              lastPage: currentPage,
+                            );
+                        if (mounted) setState(() {});
+                      },
+                      onPageChanged: _onPageChanged,
+                      linkHandlerParams: PdfLinkHandlerParams(
+                        onLinkTap: (link) {
+                          if (link.dest != null) {
+                            controller.goToDest(link.dest);
+                          } else if (link.url != null) {
+                            launchUrlExternal(link.url!, context: context);
+                          }
+                        },
+                      ),
+                      loadingBannerBuilder: (context, done, total) =>
+                          const Center(child: CircularProgressIndicator()),
+                      viewerOverlayBuilder: (context, size, handleLinkTap) => [
+                        PdfViewerScrollThumb(
+                          controller: controller,
+                          orientation: ScrollbarOrientation.right,
+                          thumbSize: const Size(36, 24),
+                          thumbBuilder:
+                              (context, thumbSize, pageNumber, controller) =>
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .inverseSurface
+                                          .withValues(alpha: 0.7),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '$pageNumber',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onInverseSurface,
                                         ),
                                       ),
                                     ),
-                              ),
-                            ],
+                                  ),
+                        ),
+                      ],
+                    ),
+                  );
+            if (narrow) {
+              return Stack(
+                children: [
+                  Positioned.fill(child: viewer),
+                  if (settings.sidebarOpen || settings.aiPanelOpen)
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: () {
+                          final s = ref.read(settingsProvider);
+                          s.sidebarOpen = false;
+                          s.aiPanelOpen = false;
+                          s.save();
+                          setState(() {});
+                        },
+                        child: const ColoredBox(color: Color(0x33000000)),
                       ),
                     ),
-            ),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: settings.aiPanelOpen ? 400 : 0,
-              child: settings.aiPanelOpen ? _buildRightPanel() : null,
-            ),
-          ],
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: sideW,
+                    child: Material(
+                      elevation: 16,
+                      child: settings.sidebarOpen
+                          ? _buildSidebar()
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: aiW,
+                    child: Material(
+                      elevation: 16,
+                      child: settings.aiPanelOpen
+                          ? _buildRightPanel()
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: settings.sidebarOpen ? sideW : 0,
+                  child: settings.sidebarOpen ? _buildSidebar() : null,
+                ),
+                Expanded(child: viewer),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: settings.aiPanelOpen ? aiW : 0,
+                  child: settings.aiPanelOpen ? _buildRightPanel() : null,
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

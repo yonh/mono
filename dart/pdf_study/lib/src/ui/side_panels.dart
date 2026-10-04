@@ -482,18 +482,24 @@ class _MatchTileState extends State<_MatchTile> {
   @override
   Widget build(BuildContext context) {
     final m = widget.match;
-    final full = _text?.fullText ?? m.text;
-    var start = m.start;
-    var end = m.end;
-    // 上下文片段：扩展到前后句子边界或 ±40 字
-    while (start > 0 && m.start - start < 40 && full[start - 1] != '\n') {
-      start--;
+    // 全文未加载时只用命中片段展示，页内偏移只在全文上才有意义
+    final loaded = _text != null && _text!.fullText.length >= m.end;
+    final full = loaded ? _text!.fullText : '';
+    var start = 0;
+    var end = 0;
+    if (loaded) {
+      start = m.start;
+      end = m.end;
+      // 上下文片段：扩展到前后句子边界或 ±40 字
+      while (start > 0 && m.start - start < 40 && full[start - 1] != '\n') {
+        start--;
+      }
+      while (end < full.length && end - m.end < 40 && full[end] != '\n') {
+        end++;
+      }
+      start = start.clamp(0, m.start);
+      end = end.clamp(m.end, full.length);
     }
-    while (end < full.length && end - m.end < 40 && full[end] != '\n') {
-      end++;
-    }
-    start = start.clamp(0, m.start);
-    end = end.clamp(m.end, full.length);
     final cur = widget.isCurrent;
     return InkWell(
       onTap: widget.onTap,
@@ -508,7 +514,9 @@ class _MatchTileState extends State<_MatchTile> {
           TextSpan(
             children: [
               TextSpan(
-                text: full.substring(start, m.start.clamp(start, full.length)),
+                text: loaded
+                    ? full.substring(start, m.start.clamp(start, full.length))
+                    : '…',
               ),
               TextSpan(
                 text: m.text,
@@ -517,7 +525,11 @@ class _MatchTileState extends State<_MatchTile> {
                   color: Colors.black87,
                 ),
               ),
-              TextSpan(text: full.substring(m.end.clamp(0, full.length), end)),
+              TextSpan(
+                text: loaded
+                    ? full.substring(m.end.clamp(0, full.length), end)
+                    : '…',
+              ),
             ],
           ),
           maxLines: 3,

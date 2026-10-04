@@ -32,11 +32,12 @@ class AppDirs {
   File file(String name) => File('${root.path}/$name');
 }
 
-/// 原子 JSON 文件读写。
+/// 原子 JSON 文件读写。写入按实例串行排队，避免并发写同一 .tmp 丢数据。
 class JsonFile {
   JsonFile(this.file);
 
   final File file;
+  Future<void> _tail = Future.value();
 
   Future<dynamic> read() async {
     try {
@@ -47,11 +48,15 @@ class JsonFile {
     }
   }
 
-  Future<void> write(dynamic value) async {
-    await file.parent.create(recursive: true);
-    final tmp = File('${file.path}.tmp');
-    await tmp.writeAsString(jsonEncode(value));
-    await tmp.rename(file.path);
+  Future<void> write(dynamic value) {
+    final op = _tail.then((_) async {
+      await file.parent.create(recursive: true);
+      final tmp = File('${file.path}.tmp');
+      await tmp.writeAsString(jsonEncode(value));
+      await tmp.rename(file.path);
+    });
+    _tail = op.then((_) {}, onError: (_) {});
+    return op;
   }
 }
 
