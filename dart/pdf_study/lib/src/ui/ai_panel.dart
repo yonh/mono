@@ -93,6 +93,9 @@ class AiPanelState extends ConsumerState<AiPanel> {
     }
     setState(() => _running = true);
     _cancel = false;
+    _lastReq = messages;
+    _lastDisplay = displayUser;
+    _lastJson = jsonMode;
     final userMsg = ChatMessage(role: 'user', content: displayUser);
     final asst = ChatMessage(role: 'assistant', content: '');
     await host.chat.add(userMsg);
@@ -108,17 +111,33 @@ class AiPanelState extends ConsumerState<AiPanel> {
         } else if (chunk.text.isNotEmpty) {
           asst.content += chunk.text;
         }
-        host.chat.update();
+        host.chat.notify(); // 流式期间只刷 UI，不落盘
         _scrollBottom();
         if (chunk.done) break;
       }
       if (asst.content.trim().isEmpty) {
         asst.content = '（无返回内容）';
-        host.chat.update();
       }
+      await host.chat.update();
     } finally {
       if (mounted) setState(() => _running = false);
     }
+  }
+
+  List<ChatMessage>? _lastReq;
+  String? _lastDisplay;
+  bool _lastJson = false;
+
+  /// 重试上一次请求（移除失败的一对消息后重发）。
+  Future<void> _retry() async {
+    final req = _lastReq;
+    if (req == null || _running) return;
+    final msgs = host.chat.messages;
+    if (msgs.length >= 2) {
+      msgs.removeRange(msgs.length - 2, msgs.length);
+      await host.chat.update();
+    }
+    await _run(req, _lastDisplay ?? '', jsonMode: _lastJson);
   }
 
   /// 供工具栏/右键菜单调用的快捷动作。
@@ -303,6 +322,12 @@ class AiPanelState extends ConsumerState<AiPanel> {
                 itemBuilder: (context, i) => _Bubble(
                   msg: msgs[i],
                   streaming: _running && i == msgs.length - 1,
+                  onRetry:
+                      msgs[i].role == 'assistant' &&
+                          msgs[i].content == '（无返回内容）' &&
+                          !_running
+                      ? _retry
+                      : null,
                 ),
               );
             },
@@ -366,10 +391,11 @@ class AiPanelState extends ConsumerState<AiPanel> {
 }
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.msg, required this.streaming});
+  const _Bubble({required this.msg, required this.streaming, this.onRetry});
 
   final ChatMessage msg;
   final bool streaming;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -399,13 +425,30 @@ class _Bubble extends StatelessWidget {
             if (!isUser && msg.content.isNotEmpty)
               Align(
                 alignment: Alignment.centerRight,
-                child: InkWell(
-                  onTap: () =>
-                      Clipboard.setData(ClipboardData(text: msg.content)),
-                  child: const Padding(
-                    padding: EdgeInsets.only(top: 2),
-                    child: Icon(Icons.copy, size: 13, color: Colors.grey),
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onRetry != null)
+                      InkWell(
+                        onTap: onRetry,
+                        child: const Padding(
+                          padding: EdgeInsets.only(top: 2, right: 6),
+                          child: Icon(
+                            Icons.refresh,
+                            size: 14,
+                            color: Colors.blueGrey,
+                          ),
+                        ),
+                      ),
+                    InkWell(
+                      onTap: () =>
+                          Clipboard.setData(ClipboardData(text: msg.content)),
+                      child: const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Icon(Icons.copy, size: 13, color: Colors.grey),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],

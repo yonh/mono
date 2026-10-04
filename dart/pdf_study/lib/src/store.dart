@@ -331,6 +331,9 @@ class ChatStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 只刷新 UI 不落盘（流式期间每个 chunk 调用）。
+  void notify() => notifyListeners();
+
   Future<void> clear() async {
     messages.clear();
     await _save();

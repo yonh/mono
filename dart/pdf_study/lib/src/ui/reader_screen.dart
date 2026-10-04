@@ -589,10 +589,13 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
             ),
             IconButton(
               tooltip: '本页书签',
-              icon: Icon(
-                docData.isBookmarked(currentPage)
-                    ? Icons.bookmark
-                    : Icons.bookmark_border,
+              icon: ListenableBuilder(
+                listenable: docData,
+                builder: (context, _) => Icon(
+                  docData.isBookmarked(currentPage)
+                      ? Icons.bookmark
+                      : Icons.bookmark_border,
+                ),
               ),
               onPressed: () => docData.toggleBookmark(currentPage),
             ),
@@ -669,6 +672,27 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
                       keyHandlerParams: const PdfViewerKeyHandlerParams(
                         autofocus: true,
                       ),
+                      // 应用级 ⌘ 快捷键在 viewer 持有焦点时被 pdfrx
+                      // 键盘层拦截，从这里分发才能生效。
+                      onKey: (params, key, isRealKeyPress) {
+                        final cmd =
+                            HardwareKeyboard.instance.isMetaPressed ||
+                            HardwareKeyboard.instance.isControlPressed;
+                        if (!cmd || !isRealKeyPress) return null;
+                        if (key == LogicalKeyboardKey.keyF) {
+                          toggleSidebar(0);
+                          return true;
+                        }
+                        if (key == LogicalKeyboardKey.keyB) {
+                          toggleSidebar();
+                          return true;
+                        }
+                        if (key == LogicalKeyboardKey.keyJ) {
+                          toggleAiPanel();
+                          return true;
+                        }
+                        return null;
+                      },
                       sizeDelegateProvider:
                           const PdfViewerSizeDelegateProviderLegacy(
                             maxScale: 8,
