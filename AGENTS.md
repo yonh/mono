@@ -9,8 +9,8 @@ mono 是多语言个人项目仓库：一个仓库装所有语言的项目。
 - 每个项目目录必须含 `mono.json`（`name`/`lang`/`description`/`created`）
   和自己的 `README.md`；`mono.json` 是"该目录是项目"的唯一标记。
 - `tools/`、`docs/`、`scripts/`、隐藏目录不进索引，不是语言命名空间。
-- 已有的 `grap_page/` 是独立 git 仓库，临时驻留在根部，已被忽略；
-  归属待定（见下方"例外"）。
+- 项目可以带着自己的历史纳入：先用 `git merge --allow-unrelated-histories`
+  并入，再用 `register` 登记索引（见 `ts/grap_page` 先例）。
 
 ## 项目创建与索引：只用脚本，不手改
 
@@ -26,10 +26,9 @@ python3 tools/mono.py index                                  # 仅重建索引
 `new` 会生成 `<lang>/<name>/mono.json` 和项目 README，并把项目写进首页索引；
 之后在该项目内正常开发即可。删除项目：删目录后跑一次 `index`。
 
-## 例外
-
-- `grap_page/`（根部的独立仓库，TypeScript/WXT 浏览器插件）暂不进索引，
-  待确认归属后再决定是否挪入 `ts/grap_page/`。
+```bash
+python3 tools/mono.py register <lang> <dir> --desc "说明"   # 登记已存在的目录
+```
 
 ## 提交
 

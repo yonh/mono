@@ -8,5 +8,6 @@
 <!-- MONO:INDEX:BEGIN -->
 *本节由 `python3 tools/mono.py index` 生成，请勿手改。*
 
-*暂无项目。*
+### ts
+- [grap_page](ts/grap_page/) — 网页原义提取器：WXT 浏览器插件 + 本地后端，网页数据无损提取/传输/存储 · 2026-10-05
 <!-- MONO:INDEX:END -->

@@ -27,7 +27,7 @@ BEGIN = "<!-- MONO:INDEX:BEGIN -->"
 END = "<!-- MONO:INDEX:END -->"
 
 # 非语言命名空间的顶层目录
-RESERVED = {"tools", "docs", "scripts", ".github", "grap_page"}
+RESERVED = {"tools", "docs", "scripts", ".github"}
 
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$", re.IGNORECASE)
 
@@ -113,6 +113,40 @@ def cmd_new(args):
     print(f"已创建 {lang}/{dirname}/")
 
 
+def cmd_register(args):
+    """Register an existing <lang>/<dir>/ as a project: write mono.json
+    (and a README stub if absent), then rebuild the index."""
+    lang = args.lang.lower()
+    proj = ROOT / lang / args.dir
+    if not proj.is_dir():
+        sys.exit(f"目录不存在: {proj.relative_to(ROOT)}")
+    meta_file = proj / "mono.json"
+    if meta_file.exists():
+        sys.exit(f"已是注册项目: {lang}/{args.dir}")
+    meta_file.write_text(
+        json.dumps(
+            {
+                "name": args.name or args.dir,
+                "lang": lang,
+                "description": args.desc or "",
+                "created": date.today().isoformat(),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    readme = proj / "README.md"
+    if not readme.exists():
+        readme.write_text(
+            f"# {args.name or args.dir}\n\n{args.desc or '待补充。'}\n",
+            encoding="utf-8",
+        )
+    cmd_index(args)
+    print(f"已注册 {lang}/{args.dir}/")
+
+
 def cmd_list(_args):
     found = False
     for lang, proj_dir, meta in iter_projects():
@@ -133,6 +167,13 @@ def main():
     p_new.add_argument("--desc", help="一句话说明，进索引")
     p_new.add_argument("--dir", help="目录名（默认取 name 小写）")
     p_new.set_defaults(fn=cmd_new)
+
+    p_reg = sub.add_parser("register", help="把已存在的 <lang>/<dir> 登记为项目并刷新索引")
+    p_reg.add_argument("lang")
+    p_reg.add_argument("dir", help="已存在的目录名")
+    p_reg.add_argument("--name", help="项目显示名（默认取目录名）")
+    p_reg.add_argument("--desc", help="一句话说明，进索引")
+    p_reg.set_defaults(fn=cmd_register)
 
     sub.add_parser("list", help="列出全部项目").set_defaults(fn=cmd_list)
     sub.add_parser("index", help="只重建 README 索引").set_defaults(fn=cmd_index)
