@@ -1,0 +1,4 @@
+apikey: sk-sp-c3c3273aac4348338203194792610e2f
+doc_url: https://help.aliyun.com/zh/model-studio/coding-plan
+openai_endpoint: https://coding.dashscope.aliyuncs.com/v1
+anthropic_endpoint: https://coding.dashscope.aliyuncs.com/apps/anthropic

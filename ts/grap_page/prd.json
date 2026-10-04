@@ -1,0 +1,7 @@
+[
+  { "id": "1", "title": "环境搭建与持久化配置", "passes": true, "priority": 1 },
+  { "id": "2", "title": "UI 组件注入 (TDD)", "passes": true, "priority": 2 },
+  { "id": "3", "title": "数据采集与传输 (TDD)", "passes": true, "priority": 3 },
+  { "id": "4", "title": "后端服务与 LLM 对接 (TDD)", "passes": true, "priority": 4 },
+  { "id": "5", "title": "全链路联调", "passes": true, "priority": 5 }
+]
