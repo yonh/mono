@@ -223,13 +223,24 @@ class _DocCard extends StatefulWidget {
 class _DocCardState extends State<_DocCard> {
   bool _hover = false;
 
-  /// 封面在 initState 构建一次后复用：hover 触发的整卡 setState 若重建
+  /// 封面缓存复用：hover 触发的整卡 setState 若重建
   /// PdfDocumentViewBuilder/PdfDocumentRefFile，文档会被判定为已变更而重新
-  /// 加载，封面闪白——这就是鼠标移上去闪烁的来源。
-  late final Widget _cover = _buildCover();
+  /// 加载，封面闪白——这就是鼠标移上去闪烁的来源。仅在文件「缺失→恢复」
+  /// 时重建一次，让之前显示占位图的书恢复真实封面。
+  Widget? _cover;
+  bool _coverWasMissing = false;
 
-  Widget _buildCover() {
-    if (!File(widget.entry.path).existsSync()) {
+  Widget get _coverWidget {
+    final exists = File(widget.entry.path).existsSync();
+    if (_cover == null || (_coverWasMissing && exists)) {
+      _coverWasMissing = !exists;
+      _cover = _buildCover(exists);
+    }
+    return _cover!;
+  }
+
+  Widget _buildCover(bool exists) {
+    if (!exists) {
       return const Center(
         child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
       );
@@ -275,7 +286,7 @@ class _DocCardState extends State<_DocCard> {
                   children: [
                     Container(
                       color: const Color(0xFF8B93A3).withValues(alpha: 0.15),
-                      child: _cover,
+                      child: _coverWidget,
                     ),
                     if (_hover)
                       Positioned(
