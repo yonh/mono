@@ -800,30 +800,22 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
                         child: const ColoredBox(color: Color(0x33000000)),
                       ),
                     ),
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: sideW,
-                    child: Material(
-                      elevation: 16,
-                      child: settings.sidebarOpen
-                          ? _buildSidebar()
-                          : const SizedBox.shrink(),
+                  if (settings.sidebarOpen)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: sideW,
+                      child: Material(elevation: 16, child: _buildSidebar()),
                     ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: aiW,
-                    child: Material(
-                      elevation: 16,
-                      child: settings.aiPanelOpen
-                          ? _buildRightPanel()
-                          : const SizedBox.shrink(),
+                  if (settings.aiPanelOpen)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: aiW,
+                      child: Material(elevation: 16, child: _buildRightPanel()),
                     ),
-                  ),
                 ],
               );
             }

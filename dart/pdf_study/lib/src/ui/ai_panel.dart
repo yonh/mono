@@ -324,7 +324,9 @@ class AiPanelState extends ConsumerState<AiPanel> {
                   streaming: _running && i == msgs.length - 1,
                   onRetry:
                       msgs[i].role == 'assistant' &&
+                          i == msgs.length - 1 &&
                           msgs[i].content == '（无返回内容）' &&
+                          _lastReq != null &&
                           !_running
                       ? _retry
                       : null,
