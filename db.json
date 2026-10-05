@@ -6,6 +6,13 @@
       "dir": "grap_page",
       "description": "网页原义提取器：WXT 浏览器插件 + 本地后端，网页数据无损提取/传输/存储",
       "created": "2026-10-05"
+    },
+    {
+      "name": "pdf_study",
+      "lang": "dart",
+      "dir": "pdf_study",
+      "description": "AI PDF 学习阅读器：批注/笔记 + DeepSeek/Claude/Codex/Devin 问答、讲解与课后复习",
+      "created": "2026-10-04"
     }
   ]
 }
