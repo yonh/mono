@@ -220,6 +220,36 @@ class _DocCard extends StatefulWidget {
 class _DocCardState extends State<_DocCard> {
   bool _hover = false;
 
+  /// 封面在 initState 构建一次后复用：hover 触发的整卡 setState 若重建
+  /// PdfDocumentViewBuilder/PdfDocumentRefFile，文档会被判定为已变更而重新
+  /// 加载，封面闪白——这就是鼠标移上去闪烁的来源。
+  late final Widget _cover = _buildCover();
+
+  Widget _buildCover() {
+    if (!File(widget.entry.path).existsSync()) {
+      return const Center(
+        child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+      );
+    }
+    return PdfDocumentViewBuilder(
+      documentRef: PdfDocumentRefFile(widget.entry.path),
+      builder: (context, doc) => doc == null
+          ? const Center(
+              child: Icon(
+                Icons.picture_as_pdf,
+                size: 48,
+                color: Colors.redAccent,
+              ),
+            )
+          : PdfPageView(
+              document: doc,
+              pageNumber: 1,
+              alignment: Alignment.topCenter,
+              maximumDpi: 110,
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final e = widget.entry;
@@ -242,31 +272,7 @@ class _DocCardState extends State<_DocCard> {
                   children: [
                     Container(
                       color: const Color(0xFF8B93A3).withValues(alpha: 0.15),
-                      child: exists
-                          ? PdfDocumentViewBuilder(
-                              documentRef: PdfDocumentRefFile(e.path),
-                              builder: (context, doc) => doc == null
-                                  ? const Center(
-                                      child: Icon(
-                                        Icons.picture_as_pdf,
-                                        size: 48,
-                                        color: Colors.redAccent,
-                                      ),
-                                    )
-                                  : PdfPageView(
-                                      document: doc,
-                                      pageNumber: 1,
-                                      alignment: Alignment.topCenter,
-                                      maximumDpi: 110,
-                                    ),
-                            )
-                          : const Center(
-                              child: Icon(
-                                Icons.broken_image_outlined,
-                                size: 48,
-                                color: Colors.grey,
-                              ),
-                            ),
+                      child: _cover,
                     ),
                     if (_hover)
                       Positioned(
