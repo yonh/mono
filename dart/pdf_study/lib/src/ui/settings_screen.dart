@@ -202,11 +202,14 @@ class _ProviderCardState extends ConsumerState<_ProviderCard> {
             : IconButton(
                 icon: const Icon(Icons.delete_outline, size: 18),
                 onPressed: () async {
-                  ref
-                      .read(settingsProvider)
-                      .providers
-                      .removeWhere((p) => p.id == c.id);
-                  await ref.read(settingsProvider).save();
+                  final s = ref.read(settingsProvider);
+                  s.providers.removeWhere((p) => p.id == c.id);
+                  if (s.defaultProviderId == c.id) {
+                    s.defaultProviderId = s.providers.isNotEmpty
+                        ? s.providers.first.id
+                        : '';
+                  }
+                  await s.save();
                 },
               ),
         children: [
