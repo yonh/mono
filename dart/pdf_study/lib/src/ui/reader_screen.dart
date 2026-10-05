@@ -353,6 +353,113 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
+  /// 带笔记批注的便签小卡片（页面 overlay widget，可点击）。
+  List<Widget> _buildNoteOverlays(
+    BuildContext context,
+    Rect pageRect,
+    PdfPage page,
+  ) {
+    const chipW = 118.0;
+    const chipH = 30.0;
+    final widgets = <Widget>[];
+    for (final a in docData.onPage(page.pageNumber)) {
+      if (!a.hasNote || a.rects.isEmpty) continue;
+      final r = a.rects.first;
+      final anchor = PdfRect(
+        r[0],
+        r[1],
+        r[2],
+        r[3],
+      ).toRect(page: page, scaledPageSize: pageRect.size);
+      var left = anchor.right + 6;
+      if (left + chipW > pageRect.width) left = anchor.left;
+      var top = anchor.top - chipH - 4;
+      if (top < 0) top = anchor.bottom + 4;
+      widgets.add(
+        Positioned(
+          left: left,
+          top: top,
+          child: PdfOverlayInteractionRegion(
+            onTap: (_) {
+              _showNoteCard(a);
+              return true;
+            },
+            child: _NoteChip(annotation: a, width: chipW),
+          ),
+        ),
+      );
+    }
+    return widgets;
+  }
+
+  /// 点开便签卡片：显示引用原文 + 笔记全文。
+  Future<void> _showNoteCard(Annotation a) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            CircleAvatar(radius: 6, backgroundColor: Color(a.colorValue)),
+            const SizedBox(width: 8),
+            Text('第 ${a.page} 页 · 笔记'),
+          ],
+        ),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Color(a.colorValue).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border(
+                    left: BorderSide(color: Color(a.colorValue), width: 3),
+                  ),
+                ),
+                child: SelectableText(
+                  a.text,
+                  maxLines: 5,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SelectableText(a.note, style: const TextStyle(fontSize: 14)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton.icon(
+            icon: const Icon(Icons.copy, size: 16),
+            label: const Text('复制笔记'),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: a.note));
+              Navigator.pop(ctx);
+            },
+          ),
+          TextButton.icon(
+            icon: const Icon(Icons.edit_outlined, size: 16),
+            label: const Text('编辑'),
+            onPressed: () => Navigator.pop(ctx, 'edit'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+    if (action == 'edit' && mounted) {
+      await editAnnotation(a);
+    }
+  }
+
   // ---------- 上下文菜单 ----------
 
   Widget _selectionToolbar(
@@ -707,6 +814,7 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
                           searcher!.pageTextMatchPaintCallback,
                         _paintAnnotations,
                       ],
+                      pageOverlaysBuilder: _buildNoteOverlays,
                       buildContextMenu: _buildContextMenu,
                       onViewerReady: (doc, ctrl) async {
                         document = doc;
@@ -916,6 +1024,60 @@ class ReaderScreenState extends ConsumerState<ReaderScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// 页面上的便签小卡片贴片：显示笔记预览，点击弹出完整笔记。
+class _NoteChip extends StatelessWidget {
+  const _NoteChip({required this.annotation, required this.width});
+
+  final Annotation annotation;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: width,
+      constraints: const BoxConstraints(minHeight: 30),
+      padding: const EdgeInsets.fromLTRB(5, 4, 5, 4),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF4A4433) : const Color(0xFFFFF7CC),
+        borderRadius: BorderRadius.circular(3),
+        border: Border(
+          top: BorderSide(color: Color(annotation.colorValue), width: 3),
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 3,
+            offset: Offset(1, 1),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(Icons.sticky_note_2_outlined, size: 9),
+          ),
+          const SizedBox(width: 3),
+          Expanded(
+            child: Text(
+              annotation.note,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 7.5,
+                height: 1.25,
+                color: dark ? Colors.amber[50] : const Color(0xFF4A3D00),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
