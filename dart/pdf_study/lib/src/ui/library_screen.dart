@@ -127,6 +127,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         ),
                     itemCount: lib.entries.length,
                     itemBuilder: (context, i) => _DocCard(
+                      // 条目重排（打开/删除改变顺序）时让 State 跟随条目，
+                      // 否则缓存的 _cover 会张冠李戴。
+                      key: ValueKey(lib.entries[i].key),
                       entry: lib.entries[i],
                       onOpen: () => _openPaths([lib.entries[i].path]),
                       onRemove: () => lib.remove(lib.entries[i].key),
