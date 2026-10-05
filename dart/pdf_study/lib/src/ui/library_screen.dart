@@ -127,6 +127,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         ),
                     itemCount: lib.entries.length,
                     itemBuilder: (context, i) => _DocCard(
+                      // 条目重排（打开/删除改变顺序）时让 State 跟随条目，
+                      // 否则缓存的 _cover 会张冠李戴。
+                      key: ValueKey(lib.entries[i].key),
                       entry: lib.entries[i],
                       onOpen: () => _openPaths([lib.entries[i].path]),
                       onRemove: () => lib.remove(lib.entries[i].key),
@@ -220,6 +223,47 @@ class _DocCard extends StatefulWidget {
 class _DocCardState extends State<_DocCard> {
   bool _hover = false;
 
+  /// 封面缓存复用：hover 触发的整卡 setState 若重建
+  /// PdfDocumentViewBuilder/PdfDocumentRefFile，文档会被判定为已变更而重新
+  /// 加载，封面闪白——这就是鼠标移上去闪烁的来源。仅在文件「缺失→恢复」
+  /// 时重建一次，让之前显示占位图的书恢复真实封面。
+  Widget? _cover;
+  bool _coverWasMissing = false;
+
+  Widget get _coverWidget {
+    final exists = File(widget.entry.path).existsSync();
+    if (_cover == null || (_coverWasMissing && exists)) {
+      _coverWasMissing = !exists;
+      _cover = _buildCover(exists);
+    }
+    return _cover!;
+  }
+
+  Widget _buildCover(bool exists) {
+    if (!exists) {
+      return const Center(
+        child: Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey),
+      );
+    }
+    return PdfDocumentViewBuilder(
+      documentRef: PdfDocumentRefFile(widget.entry.path),
+      builder: (context, doc) => doc == null
+          ? const Center(
+              child: Icon(
+                Icons.picture_as_pdf,
+                size: 48,
+                color: Colors.redAccent,
+              ),
+            )
+          : PdfPageView(
+              document: doc,
+              pageNumber: 1,
+              alignment: Alignment.topCenter,
+              maximumDpi: 110,
+            ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final e = widget.entry;
@@ -242,31 +286,7 @@ class _DocCardState extends State<_DocCard> {
                   children: [
                     Container(
                       color: const Color(0xFF8B93A3).withValues(alpha: 0.15),
-                      child: exists
-                          ? PdfDocumentViewBuilder(
-                              documentRef: PdfDocumentRefFile(e.path),
-                              builder: (context, doc) => doc == null
-                                  ? const Center(
-                                      child: Icon(
-                                        Icons.picture_as_pdf,
-                                        size: 48,
-                                        color: Colors.redAccent,
-                                      ),
-                                    )
-                                  : PdfPageView(
-                                      document: doc,
-                                      pageNumber: 1,
-                                      alignment: Alignment.topCenter,
-                                      maximumDpi: 110,
-                                    ),
-                            )
-                          : const Center(
-                              child: Icon(
-                                Icons.broken_image_outlined,
-                                size: 48,
-                                color: Colors.grey,
-                              ),
-                            ),
+                      child: _coverWidget,
                     ),
                     if (_hover)
                       Positioned(
